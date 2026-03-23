@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
+import { Toaster, toast } from 'sonner';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -220,6 +221,7 @@ function LuminaInsight({ notes, isPremium }: { notes: Note[], isPremium: boolean
 export default function App() {
   return (
     <ErrorBoundary>
+      <Toaster position="top-center" richColors />
       <AppContent />
     </ErrorBoundary>
   );
@@ -426,6 +428,24 @@ function AppContent() {
     await updateNote(selectedNote.id, { tags: updatedTags });
   };
 
+  const copyToClipboard = async () => {
+    if (!selectedNote) return;
+    const text = `${selectedNote.title || 'Untitled Note'}\n\n${selectedNote.content}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard!');
+    } catch (err) {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const shareViaEmail = () => {
+    if (!selectedNote) return;
+    const subject = encodeURIComponent(selectedNote.title || 'Note from Lumina');
+    const body = encodeURIComponent(selectedNote.content || '');
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
   // Voice Recording Logic
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -591,8 +611,8 @@ function AppContent() {
               
               {!userProfile?.isPremium && (
                 <div className="px-4 py-6 mt-4 glass rounded-2xl border border-white/10">
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3">Remove Ads</p>
-                  <p className="text-xs text-white/60 mb-4 leading-relaxed">Upgrade to Lumina Premium for a one-time fee of $5.</p>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3">Lumina Premium</p>
+                  <p className="text-xs text-white/60 mb-4 leading-relaxed">Unlock Lumina Insight and remove ads for a one-time fee of $9.99.</p>
                   <GooglePayButton
                     environment="TEST"
                     paymentRequest={{
@@ -621,7 +641,7 @@ function AppContent() {
                       transactionInfo: {
                         totalPriceStatus: 'FINAL',
                         totalPriceLabel: 'Total',
-                        totalPrice: '5.00',
+                        totalPrice: '9.99',
                         currencyCode: 'USD',
                         countryCode: 'US',
                       },
@@ -779,10 +799,22 @@ function AppContent() {
                   <button 
                     onClick={() => setNoteToDelete(selectedNote.id)}
                     className="p-2 hover:bg-red-500/10 text-white/20 hover:text-red-400 rounded-lg transition-all"
+                    title="Delete Note"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
-                  <button className="p-2 hover:bg-white/5 text-white/20 hover:text-white rounded-lg transition-all">
+                  <button 
+                    onClick={copyToClipboard}
+                    className="p-2 hover:bg-white/5 text-white/20 hover:text-white rounded-lg transition-all"
+                    title="Copy to Clipboard"
+                  >
+                    <Copy className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={shareViaEmail}
+                    className="p-2 hover:bg-white/5 text-white/20 hover:text-white rounded-lg transition-all"
+                    title="Share via Email"
+                  >
                     <Share2 className="w-5 h-5" />
                   </button>
                 </div>
