@@ -5,6 +5,7 @@ export interface UserProfile {
   email: string;
   displayName: string | null;
   photoURL: string | null;
+  isPremium?: boolean;
   createdAt: Timestamp;
 }
 
@@ -14,6 +15,7 @@ export interface Note {
   title: string;
   content: string;
   markup: string | null;
+  embeddings?: number[];
   tags: string[];
   isVoiceNote: boolean;
   audioUrl: string | null;

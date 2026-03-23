@@ -5,17 +5,22 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, loginWithGoogle, logout, OperationType, handleFirestoreError } from './firebase';
 import { Note, UserProfile } from './types';
-import { formatNoteWithAI } from './services/geminiService';
+import { formatNoteWithAI, getEmbeddings, chatWithNotes } from './services/geminiService';
+import GooglePayButton from '@google-pay/button-react';
 import { 
   Search, Plus, LogOut, FileText, Mic, Trash2, Save, 
   Sparkles, Download, Menu, X, ChevronRight, 
   Clock, Hash, User as UserIcon, Settings,
   MoreVertical, Share2, Copy, Check,
   MicOff,
-  StopCircle
+  StopCircle,
+  MessageCircle,
+  Send,
+  Bot,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -64,6 +69,154 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
+function AdBanner() {
+  useEffect(() => {
+    try {
+      // @ts-ignore
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      // Ignore errors if ads are blocked or script not loaded
+    }
+  }, []);
+
+  return (
+    <div className="w-full bg-white/5 rounded-xl p-4 my-4 flex flex-col items-center justify-center border border-white/10 min-h-[100px]">
+      <span className="text-[10px] text-white/20 uppercase tracking-widest mb-2">Advertisement</span>
+      <ins className="adsbygoogle"
+           style={{ display: 'block' }}
+           data-ad-client="ca-pub-0000000000000000"
+           data-ad-slot="0000000000"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+    </div>
+  );
+}
+
+function LuminaInsight({ notes, isPremium }: { notes: Note[], isPremium: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [messages, setMessages] = useState<{ role: 'user' | 'ai', content: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!query.trim() || isLoading) return;
+    if (!isPremium) {
+      setMessages(prev => [...prev, { role: 'user', content: query }, { role: 'ai', content: "Lumina Insight is a Premium feature. Upgrade to chat with your knowledge base!" }]);
+      setQuery('');
+      return;
+    }
+
+    const userQuery = query;
+    setQuery('');
+    setMessages(prev => [...prev, { role: 'user', content: userQuery }]);
+    setIsLoading(true);
+
+    try {
+      const relevantNotes = notes.map(n => ({ title: n.title, content: n.content }));
+      const response = await chatWithNotes(userQuery, relevantNotes);
+      setMessages(prev => [...prev, { role: 'ai', content: response }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <button 
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-white text-black rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-40"
+      >
+        <Bot className="w-6 h-6" />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-24 right-6 w-[400px] h-[600px] glass rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden z-50"
+          >
+            <div className="p-4 border-bottom border-white/10 flex items-center justify-between bg-white/5">
+              <div className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-white" />
+                <span className="font-bold text-sm">Lumina Insight</span>
+                {!isPremium && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-white/40">PREMIUM</span>}
+              </div>
+              <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-white/10 rounded-full">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 && (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-4">
+                    <Zap className="w-6 h-6 text-white/40" />
+                  </div>
+                  <p className="text-sm font-medium mb-2">Ask your Knowledge Base</p>
+                  <p className="text-xs text-white/40">"What did I learn about AI last week?" or "Summarize my project notes."</p>
+                </div>
+              )}
+              {messages.map((m, i) => (
+                <div key={i} className={cn("flex", m.role === 'user' ? "justify-end" : "justify-start")}>
+                  <div className={cn(
+                    "max-w-[85%] p-3 rounded-2xl text-sm",
+                    m.role === 'user' ? "bg-white text-black" : "bg-white/5 border border-white/10 text-white/80"
+                  )}>
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <ReactMarkdown>
+                        {m.content}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                    <div className="flex gap-1">
+                      <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" />
+                      <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:0.2s]" />
+                      <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:0.4s]" />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-top border-white/10 bg-white/5">
+              <div className="relative">
+                <input 
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Ask Lumina..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:border-white/20 transition-colors"
+                />
+                <button 
+                  onClick={handleSend}
+                  disabled={isLoading || !query.trim()}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white text-black rounded-xl disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -74,6 +227,7 @@ export default function App() {
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -87,12 +241,44 @@ function AppContent() {
 
   // Auth listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      if (user) {
+        // Fetch or create user profile
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data() as UserProfile);
+        } else {
+          const newProfile: UserProfile = {
+            uid: user.uid,
+            email: user.email || '',
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            isPremium: false,
+            createdAt: Timestamp.now(),
+          };
+          await setDoc(doc(db, 'users', user.uid), newProfile);
+          setUserProfile(newProfile);
+        }
+      } else {
+        setUserProfile(null);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  const handlePaymentSuccess = async (paymentData: any) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        isPremium: true
+      });
+      setUserProfile(prev => prev ? { ...prev, isPremium: true } : null);
+    } catch (error) {
+      console.error('Payment update error:', error);
+    }
+  };
 
   // Notes listener
   useEffect(() => {
@@ -145,10 +331,20 @@ function AppContent() {
 
   const updateNote = async (id: string, updates: Partial<Note>) => {
     try {
-      await updateDoc(doc(db, 'notes', id), {
+      const updatedFields: any = {
         ...updates,
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      // If content changed, generate embeddings (debounced or on significant change)
+      if (updates.content && updates.content.length > 20) {
+        const embeddings = await getEmbeddings(updates.content);
+        if (embeddings) {
+          updatedFields.embeddings = embeddings;
+        }
+      }
+
+      await updateDoc(doc(db, 'notes', id), updatedFields);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `notes/${id}`);
     }
@@ -345,6 +541,7 @@ function AppContent() {
 
   return (
     <div className="h-screen w-screen bg-transparent text-white flex overflow-hidden font-sans">
+      <LuminaInsight notes={notes} isPremium={!!userProfile?.isPremium} />
       {/* Sidebar */}
       <AnimatePresence mode="wait">
         {isSidebarOpen && (
@@ -392,6 +589,51 @@ function AppContent() {
                 count={notes.filter(n => n.isVoiceNote).length}
               />
               
+              {!userProfile?.isPremium && (
+                <div className="px-4 py-6 mt-4 glass rounded-2xl border border-white/10">
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3">Remove Ads</p>
+                  <p className="text-xs text-white/60 mb-4 leading-relaxed">Upgrade to Lumina Premium for a one-time fee of $5.</p>
+                  <GooglePayButton
+                    environment="TEST"
+                    paymentRequest={{
+                      apiVersion: 2,
+                      apiVersionMinor: 0,
+                      allowedPaymentMethods: [
+                        {
+                          type: 'CARD',
+                          parameters: {
+                            allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+                            allowedCardNetworks: ['AMEX', 'DISCOVER', 'INTERAC', 'JCB', 'MASTERCARD', 'VISA'],
+                          },
+                          tokenizationSpecification: {
+                            type: 'PAYMENT_GATEWAY',
+                            parameters: {
+                              gateway: 'example',
+                              gatewayMerchantId: 'exampleGatewayMerchantId',
+                            },
+                          },
+                        },
+                      ],
+                      merchantInfo: {
+                        merchantId: '12345678901234567890',
+                        merchantName: 'Lumina Notes',
+                      },
+                      transactionInfo: {
+                        totalPriceStatus: 'FINAL',
+                        totalPriceLabel: 'Total',
+                        totalPrice: '5.00',
+                        currencyCode: 'USD',
+                        countryCode: 'US',
+                      },
+                    }}
+                    onLoadPaymentData={handlePaymentSuccess}
+                    buttonColor="white"
+                    buttonType="buy"
+                    className="w-full h-10"
+                  />
+                </div>
+              )}
+
               <div className="pt-8 pb-2 px-4 text-[10px] font-bold text-white/20 uppercase tracking-widest">Recent Tags</div>
               <div className="px-2 space-y-1">
                 {Array.from(new Set(notes.flatMap(n => n.tags))).slice(0, 8).map(tag => (
@@ -440,8 +682,9 @@ function AppContent() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 pb-6 space-y-2">
-          {filteredNotes.map(note => (
+          <div className="flex-1 overflow-y-auto px-3 pb-6 space-y-2">
+            {!userProfile?.isPremium && <AdBanner />}
+            {filteredNotes.map(note => (
             <motion.button
               layout
               key={note.id}
