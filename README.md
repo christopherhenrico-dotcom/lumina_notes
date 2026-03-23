@@ -17,21 +17,19 @@ Lumina Notes is a professional, AI-powered note-taking application designed for 
 To run Lumina Notes locally or in production, you'll need to configure the following services.
 
 ### 1. Firebase (Database & Auth)
+**Option A: JSON File (Local/Quick)**
 **File:** `firebase-applet-config.json` (Root directory)
+Ensure it is valid JSON with no comments or trailing commas.
 
-You need to create a project in the [Firebase Console](https://console.firebase.google.com/) and enable **Authentication** (Google Login) and **Firestore Database**.
-
-```json
-{
-  "projectId": "YOUR_PROJECT_ID",
-  "appId": "YOUR_APP_ID",
-  "apiKey": "YOUR_API_KEY",
-  "authDomain": "YOUR_AUTH_DOMAIN",
-  "firestoreDatabaseId": "YOUR_DATABASE_ID",
-  "storageBucket": "YOUR_STORAGE_BUCKET",
-  "messagingSenderId": "YOUR_SENDER_ID"
-}
-```
+**Option B: Environment Variables (Recommended for Vercel)**
+Set these in your Vercel project settings (**Settings > Environment Variables**):
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_FIRESTORE_DATABASE_ID`
 
 ### 2. Gemini AI API
 **Environment Variable:** `GEMINI_API_KEY`
@@ -55,9 +53,9 @@ To show ads, you need an AdSense account.
 
 ---
 
-## 🚀 Deployment Guide (GitHub Pages)
+## 🚀 Deployment Guide (Vercel)
 
-Lumina Notes is pre-configured for deployment to GitHub Pages with a custom domain (`lumina.is-an.ai`).
+Lumina Notes is pre-configured for deployment to Vercel with a custom domain (`lumina.is-an.ai`).
 
 ### Step 1: Firebase Authorized Domains (CRITICAL)
 For authentication to work on your new domain, you **MUST** add it to the authorized domains list in Firebase:
@@ -65,24 +63,19 @@ For authentication to work on your new domain, you **MUST** add it to the author
 2. Select your project.
 3. Go to **Authentication** > **Settings** > **Authorized Domains**.
 4. Click **Add Domain** and enter `lumina.is-an.ai`.
-5. Also add `your-username.github.io`.
+5. Also add `your-app-name.vercel.app`.
 
-### Step 2: GitHub Repository Setup
+### Step 2: Vercel Project Setup
 1. Push your code to a GitHub repository.
-2. Go to **Settings > Pages**.
-3. Under **Build and deployment**, set the source to **Deploy from a branch** and select the `gh-pages` branch.
-4. Under **Custom domain**, enter `lumina.is-an.ai`.
+2. Import the project into [Vercel](https://vercel.com/).
+3. Vercel will automatically detect Vite and configure the build settings.
+4. Add your environment variables (see above).
+5. Deploy!
 
-### Step 3: Deploy Command
-Run the following command in your terminal to build and push the app to the `gh-pages` branch:
-```bash
-npm run deploy
-```
-
-### Step 4: DNS Configuration
-Ensure your domain provider points `lumina.is-an.ai` to GitHub's servers:
-- **A Records**: `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
-- **CNAME Record**: Point `lumina.is-an.ai` to `your-username.github.io`.
+### Step 3: Custom Domain Setup
+1. In Vercel, go to **Settings > Domains**.
+2. Add `lumina.is-an.ai`.
+3. Vercel will provide the DNS records (usually an A record or CNAME) to add to your domain provider.
 
 ---
 
