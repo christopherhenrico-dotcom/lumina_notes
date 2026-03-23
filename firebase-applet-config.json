@@ -1,8 +1,8 @@
-{
+const firebaseConfig = {
   apiKey: "AIzaSyBKhtGhkjDW7jQxWDmre8s8FvB65jKvOoU",
   authDomain: "vaultlyauth.firebaseapp.com",
   projectId: "vaultlyauth",
   storageBucket: "vaultlyauth.firebasestorage.app",
   messagingSenderId: "760669275089",
   appId: "1:760669275089:web:7d5da68316a1ae84a116f0"
-}
+};
