@@ -635,7 +635,7 @@ function AppContent() {
                         },
                       ],
                       merchantInfo: {
-                        merchantId: '12345678901234567890',
+                        merchantId: 'BCR2DN5T23V5HFI2',
                         merchantName: 'Lumina Notes',
                       },
                       transactionInfo: {
