@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#050505] text-white antialiased selection:bg-purple-500/30 min-h-screen;
+    background-image: 
+      radial-gradient(circle at 20% 20%, rgba(147, 51, 234, 0.15) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(249, 115, 22, 0.15) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
+  }
+  
+  .glass-dark {
+    @apply bg-black/20 backdrop-blur-2xl border border-white/5 shadow-2xl;
+  }
+
+  .glass-card {
+    @apply bg-white/[0.02] backdrop-blur-md border border-white/5 hover:bg-white/[0.05] transition-all duration-300;
+  }
+
+  .glass-input {
+    @apply bg-white/[0.03] border border-white/10 focus:border-purple-500/50 focus:bg-white/[0.06] transition-all outline-none;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+  }
+}
+
+/* Typography for Markdown */
+.prose {
+  @apply text-white/80 leading-relaxed;
+}
+.prose h1, .prose h2, .prose h3 {
+  @apply text-white font-bold tracking-tight mt-8 mb-4;
+}
+.prose h1 { @apply text-3xl; }
+.prose h2 { @apply text-2xl; }
+.prose h3 { @apply text-xl; }
+.prose p { @apply mb-4; }
+.prose ul, .prose ol { @apply mb-4 pl-6; }
+.prose li { @apply mb-2; }
+.prose code { @apply bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono text-purple-300; }
+.prose pre { @apply bg-black/40 p-4 rounded-2xl border border-white/5 my-6 overflow-x-auto; }
+.prose pre code { @apply bg-transparent p-0 text-white/90; }
+.prose blockquote { @apply border-l-4 border-purple-500/50 pl-4 italic text-white/60 my-6; }
+.prose a { @apply text-purple-400 hover:text-purple-300 underline underline-offset-4; }

@@ -1,0 +1,5 @@
+{
+  "name": "Lumina Notes",
+  "description": "A clean, intuitive notes application with AI-powered markup, voice notes, and PDF exports.",
+  "requestFramePermissions": ["microphone"]
+}
