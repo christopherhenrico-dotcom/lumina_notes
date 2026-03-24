@@ -17,11 +17,7 @@ Lumina Notes is a professional, AI-powered note-taking application designed for 
 To run Lumina Notes locally or in production, you'll need to configure the following services.
 
 ### 1. Firebase (Database & Auth)
-**Option A: JSON File (Local/Quick)**
-**File:** `firebase-applet-config.json` (Root directory)
-Ensure it is valid JSON with no comments or trailing commas.
-
-**Option B: Environment Variables (Recommended for Vercel)**
+**Environment Variables (Required for Production/Vercel)**
 Set these in your Vercel project settings (**Settings > Environment Variables**):
 - `VITE_FIREBASE_API_KEY`
 - `VITE_FIREBASE_AUTH_DOMAIN`
@@ -30,6 +26,9 @@ Set these in your Vercel project settings (**Settings > Environment Variables**)
 - `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
 - `VITE_FIREBASE_FIRESTORE_DATABASE_ID`
+
+**Local Development**
+Create a `.env` file in the root directory and add the variables above.
 
 ### 2. Gemini AI API
 **Environment Variable:** `GEMINI_API_KEY`
