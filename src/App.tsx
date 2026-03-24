@@ -245,6 +245,10 @@ function AppContent() {
   const [localContent, setLocalContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
 
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
   // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -561,10 +565,6 @@ function AppContent() {
   }
 
   if (!user) {
-    const [showFeedback, setShowFeedback] = useState(false);
-    const [feedbackText, setFeedbackText] = useState('');
-    const [feedbackSent, setFeedbackSent] = useState(false);
-
     const handleFeedbackSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!feedbackText.trim()) return;
