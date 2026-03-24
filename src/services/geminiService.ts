@@ -85,7 +85,7 @@ export const transcribeVoiceNote = async (audioBase64: string) => {
 export const getEmbeddings = async (text: string) => {
   try {
     const result = await ai.models.embedContent({
-      model: 'gemini-embedding-2',
+      model: 'text-embedding-004',
       contents: [{
         role: 'user',
         parts: [{ text }],
