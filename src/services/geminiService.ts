@@ -5,24 +5,25 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 export const formatNoteWithAI = async (content: string) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      config: {
-        systemInstruction: `You are Lumina, an elite personal strategist and knowledge architect. 
+      model: "gemini-2.0-flash",
+      contents: [{
+        role: "user",
+        parts: [{ text: `You are Lumina, an elite personal strategist and knowledge architect. 
         Your goal is to "Illuminate" the user's raw, messy notes into a high-fidelity, structured, and actionable plan.
         
         RULES:
         1. STRUCTURE: Use clear Markdown (H1 for Title, H2 for Sections).
         2. ELABORATION: Don't just reformat; expand on the user's intent. If they mention a task, break it down into sub-steps.
         3. INSIGHTS: Add a "Lumina Insights" section at the end with 3 strategic suggestions or questions based on the content.
-        4. VISUALS: Use tables, bolding, and bullet points to make it scannable.
+        4. VISUALS: Use emojis, tables, bolding, and bullet points to make it scannable and visually appealing.
         5. TONE: Professional, encouraging, and highly organized.
         
-        If the input is a list of tasks, turn it into a full daily schedule with time estimates.
-        If the input is a brain dump, turn it into a structured project brief.`,
-      },
-      contents: `Illuminate this note:
-      
-      ${content}`,
+        If the input is a list of tasks, turn it into a full daily schedule with time estimates and emojis for each task type.
+        If the input is a brain dump, turn it into a structured project brief with clear sections.` }]
+      }, {
+        role: "user",
+        parts: [{ text: `Illuminate this note:\n\n${content}` }]
+      }],
     });
 
     return response.text || content;
@@ -35,18 +36,14 @@ export const formatNoteWithAI = async (content: string) => {
 export const transcribeVoiceNote = async (audioBase64: string) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          inlineData: {
-            mimeType: "audio/webm",
-            data: audioBase64,
-          },
-        },
-        {
-          text: "Please transcribe this audio note into clear, structured text.",
-        },
-      ],
+      model: "gemini-2.0-flash",
+      contents: [{
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: "audio/webm", data: audioBase64 } },
+          { text: "Please transcribe this audio note into clear, structured text." }
+        ]
+      }],
     });
 
     return response.text || "";
@@ -59,10 +56,13 @@ export const transcribeVoiceNote = async (audioBase64: string) => {
 export const getEmbeddings = async (text: string) => {
   try {
     const result = await ai.models.embedContent({
-      model: 'gemini-embedding-2-preview',
-      contents: [text],
+      model: 'gemini-embedding-2',
+      contents: [{
+        role: 'user',
+        parts: [{ text }],
+      }],
     });
-    return result.embeddings[0].values;
+    return result.embeddings?.[0]?.values || null;
   } catch (error) {
     console.error("Gemini Embedding Error:", error);
     return null;
@@ -78,53 +78,59 @@ const cosineSimilarity = (vecA: number[], vecB: number[]) => {
 
 export const chatWithNotes = async (query: string, notes: any[]) => {
   try {
-    // 1. Get query embedding
     const queryEmbedding = await getEmbeddings(query);
     
     let context = "";
-    if (queryEmbedding) {
-      // 2. Rank notes by similarity
+    if (queryEmbedding && notes.some(n => n.embeddings)) {
       const rankedNotes = notes
-        .filter(n => n.embeddings)
+        .filter(n => n.embeddings && n.embeddings.length > 0)
         .map(n => ({
           ...n,
           similarity: cosineSimilarity(queryEmbedding, n.embeddings!)
         }))
         .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 5); // Top 5 relevant notes
+        .slice(0, 5);
 
       context = rankedNotes.map(n => `[Note: ${n.title}]\n${n.content}`).join('\n\n---\n\n');
-    } else {
-      // Fallback to simple context if embedding fails
+    } else if (notes.length > 0) {
       context = notes.slice(0, 10).map(n => `[Note: ${n.title}]\n${n.content}`).join('\n\n---\n\n');
     }
 
+    if (!context) {
+      return "Your knowledge base is empty. Create some notes first, and I'll be able to help you explore them!";
+    }
+
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      config: {
-        systemInstruction: `You are Lumina Insight, a world-class research assistant inspired by NotebookLM. 
+      model: "gemini-2.0-flash",
+      contents: [{
+        role: "user",
+        parts: [{ text: `You are Lumina Insight, a world-class research assistant inspired by NotebookLM. 
         Your purpose is to help the user synthesize, analyze, and retrieve information from their personal knowledge base.
         
         GUIDELINES:
         1. SOURCE-DRIVEN: Always prioritize information found in the provided notes. 
         2. CITATIONS: When you use information from a note, mention its title like [Note: Title].
         3. SYNTHESIS: Don't just list facts; connect the dots between different notes.
-        4. EXTERNAL KNOWLEDGE: If the answer isn't in the notes, use your internal knowledge (and Google Search if needed) to provide a helpful answer, but clearly distinguish it from the user's notes.
-        5. FORMATTING: Use clean Markdown.
+        4. EXTERNAL KNOWLEDGE: If the answer isn't in the notes, use your internal knowledge to provide a helpful answer, but clearly distinguish it from the user's notes.
+        5. FORMATTING: Use clean Markdown with emojis where appropriate.
         
-        If the user's notes are empty or irrelevant, acknowledge it and offer to help them brainstorm or search the web.`,
-        tools: [{ googleSearch: {} }],
-      },
-      contents: `Context (User's Personal Notes):
+        If the user's notes are empty or irrelevant, acknowledge it and offer to help them brainstorm.` }]
+      }, {
+        role: "user",
+        parts: [{ text: `Context (User's Personal Notes):
       ${context}
       
       User's Question:
-      ${query}`,
+      ${query}` }]
+      }],
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
     });
 
     return response.text || "I couldn't find a clear answer in your notes.";
   } catch (error) {
     console.error("Lumina Insight Error:", error);
-    return "Something went wrong while searching your notes.";
+    return "Something went wrong while searching your notes. Please try again.";
   }
 };
