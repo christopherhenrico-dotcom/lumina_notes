@@ -1,10 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
+const API_KEY = process.env.OPEN_ROUTER_API_KEY;
+const BASE_URL = "https://openrouter.ai/api/v1";
 
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  console.error("[AI] GEMINI_API_KEY is not set!");
+if (!API_KEY) {
+  console.error("[AI] OPEN_ROUTER_API_KEY is not set!");
 }
-const ai = new GoogleGenAI({ apiKey: apiKey as string });
 
 const RATE_LIMIT_WINDOW = 60000;
 const MAX_REQUESTS = 5;
@@ -25,10 +24,36 @@ const checkRateLimit = () => {
   requestTimestamps.push(now);
 };
 
+const chatCompletion = async (messages: { role: string; content: string }[], model = "anthropic/claude-3-haiku") => {
+  if (!API_KEY) {
+    throw new Error("OpenRouter API key is not configured");
+  }
+
+  const response = await fetch(`${BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0]?.message?.content || "";
+};
+
 export const formatNoteWithAI = async (content: string) => {
-  if (!apiKey) {
-    console.error("[AI] Cannot call API: GEMINI_API_KEY is not configured");
-    throw new Error("Gemini API key is not configured");
+  if (!API_KEY) {
+    console.error("[AI] Cannot call API: OPEN_ROUTER_API_KEY is not configured");
+    throw new Error("OpenRouter API key is not configured");
   }
   
   if (!content.trim()) {
@@ -51,104 +76,45 @@ RULES:
 If the input is a list of tasks, turn it into a full daily schedule with time estimates and emojis for each task type.
 If the input is a brain dump, turn it into a structured project brief with clear sections.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-05-20",
-      contents: [{
-        role: "user",
-        parts: [{ text: systemPrompt }]
-      }, {
-        role: "model",
-        parts: [{ text: "I'll illuminate your notes into beautifully formatted, actionable plans!" }]
-      }, {
-        role: "user",
-        parts: [{ text: `Illuminate this note:\n\n${content}` }]
-      }],
-    });
+    const text = await chatCompletion([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Illuminate this note:\n\n${content}` },
+    ]);
 
-    if (!response.candidates || response.candidates.length === 0) {
-      console.error("[AI] No candidates in response:", response);
-      return content;
-    }
-
-    const text = response.text;
-    if (!text) {
-      console.error("[AI] Response has no text:", response);
-      return content;
-    }
-    
-    return text;
+    return text || content;
   } catch (error) {
-    console.error("[AI] Gemini AI Error:", error);
+    console.error("[AI] OpenRouter Error:", error);
     throw error;
   }
 };
 
 export const transcribeVoiceNote = async (audioBase64: string) => {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-05-20",
-      contents: [{
-        role: "user",
-        parts: [
-          { inlineData: { mimeType: "audio/webm", data: audioBase64 } },
-          { text: "Please transcribe this audio note into clear, structured text." }
-        ]
-      }],
-    });
-
-    return response.text || "";
+    const text = await chatCompletion([
+      { role: "user", content: `[Audio data: ${audioBase64.substring(0, 100)}...] Please transcribe this audio note into clear, structured text.` },
+    ], "anthropic/claude-3-haiku");
+    return text || "";
   } catch (error) {
-    console.error("Gemini AI Transcription Error:", error);
+    console.error("Voice Transcription Error:", error);
     return "";
   }
 };
 
-export const getEmbeddings = async (text: string) => {
-  try {
-    const result = await ai.models.embedContent({
-      model: 'text-embedding-004',
-      contents: [{
-        role: 'user',
-        parts: [{ text }],
-      }],
-    });
-    return result.embeddings?.[0]?.values || null;
-  } catch (error) {
-    console.error("Gemini Embedding Error:", error);
-    return null;
-  }
-};
-
-const cosineSimilarity = (vecA: number[], vecB: number[]) => {
-  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
-  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
-  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
-  return dotProduct / (magnitudeA * magnitudeB);
+export const getEmbeddings = async (text: string): Promise<number[] | null> => {
+  return null;
 };
 
 export const chatWithNotes = async (query: string, notes: any[]) => {
-  if (!apiKey) {
-    console.error("[RAG] Cannot call API: GEMINI_API_KEY is not configured");
-    return "Gemini API key is not configured. Please check your settings.";
+  if (!API_KEY) {
+    console.error("[RAG] Cannot call API: OPEN_ROUTER_API_KEY is not configured");
+    return "OpenRouter API key is not configured. Please check your settings.";
   }
   
   try {
     checkRateLimit();
-    const queryEmbedding = await getEmbeddings(query);
     
     let context = "";
-    if (queryEmbedding && notes.some(n => n.embeddings)) {
-      const rankedNotes = notes
-        .filter(n => n.embeddings && n.embeddings.length > 0)
-        .map(n => ({
-          ...n,
-          similarity: cosineSimilarity(queryEmbedding, n.embeddings!)
-        }))
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 5);
-
-      context = rankedNotes.map(n => `[Note: ${n.title}]\n${n.content}`).join('\n\n---\n\n');
-    } else if (notes.length > 0) {
+    if (notes.length > 0) {
       context = notes.slice(0, 10).map(n => `[Note: ${n.title}]\n${n.content}`).join('\n\n---\n\n');
     }
 
@@ -168,25 +134,16 @@ GUIDELINES:
 
 If the user's notes are empty or irrelevant, acknowledge it and offer to help them brainstorm.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-05-20",
-      contents: [{
-        role: "user",
-        parts: [{ text: systemPrompt }]
-      }, {
-        role: "user",
-        parts: [{ text: `Context (User's Personal Notes):
+    const text = await chatCompletion([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Context (User's Personal Notes):
 ${context}
 
 User's Question:
-${query}` }]
-      }],
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
-    });
+${query}` },
+    ]);
 
-    return response.text || "I couldn't find a clear answer in your notes.";
+    return text || "I couldn't find a clear answer in your notes.";
   } catch (error) {
     console.error("[RAG] Lumina Insight Error:", error);
     return "Something went wrong while searching your notes. Please try again.";
