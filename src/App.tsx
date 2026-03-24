@@ -561,21 +561,54 @@ function AppContent() {
   }
 
   if (!user) {
+    const [showFeedback, setShowFeedback] = useState(false);
+    const [feedbackText, setFeedbackText] = useState('');
+    const [feedbackSent, setFeedbackSent] = useState(false);
+
+    const handleFeedbackSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!feedbackText.trim()) return;
+      
+      toast.success('Thanks for your feedback!');
+      setFeedbackText('');
+      setFeedbackSent(true);
+      setTimeout(() => setShowFeedback(false), 1500);
+    };
+
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#0a0a0a] text-white p-6 relative overflow-hidden">
-        {/* Background Gradients */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-600/20 blur-[120px] rounded-full" />
+        
+        <div className="absolute top-6 right-6 flex gap-3 z-20">
+          <button
+            onClick={() => setShowFeedback(true)}
+            className="px-4 py-2 glass rounded-full text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all"
+          >
+            Feedback
+          </button>
+          <a
+            href="https://ko-fi.com/lumina"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-pink-500/20 border border-pink-500/30 rounded-full text-sm text-pink-400 hover:bg-pink-500/30 transition-all"
+          >
+            Donate
+          </a>
+        </div>
         
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="z-10 text-center max-w-md"
         >
-          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-orange-500 rounded-2xl mx-auto mb-8 flex items-center justify-center shadow-2xl shadow-purple-500/20">
+          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-orange-500 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-2xl shadow-purple-500/20">
             <FileText className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-5xl font-bold mb-4 tracking-tight">Lumina</h1>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <h1 className="text-5xl font-bold tracking-tight">Lumina</h1>
+            <span className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/40 rounded text-xs font-bold text-yellow-400">BETA</span>
+          </div>
           <p className="text-white/60 mb-10 text-lg leading-relaxed">
             Your thoughts, illuminated. Simple, intuitive, and powered by AI.
           </p>
@@ -587,6 +620,54 @@ function AppContent() {
             Continue with Google
           </button>
         </motion.div>
+
+        <AnimatePresence>
+          {showFeedback && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+              onClick={() => setShowFeedback(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="glass-dark rounded-3xl p-8 max-w-md w-full border border-white/10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-xl font-bold mb-4">Share Your Feedback</h3>
+                <p className="text-white/50 text-sm mb-6">Help us improve Lumina! Report bugs, suggest features, or just say hi.</p>
+                <form onSubmit={handleFeedbackSubmit}>
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="Your feedback..."
+                    rows={4}
+                    className="w-full glass-input rounded-xl p-4 text-sm mb-4 resize-none focus:outline-none focus:border-white/20"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowFeedback(false)}
+                      className="flex-1 py-3 glass rounded-xl hover:bg-white/10 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!feedbackText.trim()}
+                      className="flex-1 py-3 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-all disabled:opacity-50"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
