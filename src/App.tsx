@@ -391,10 +391,20 @@ function AppContent() {
 
   const handleFormatNote = async () => {
     if (!selectedNote || isFormatting) return;
+    
+    if (!selectedNote.content.trim()) {
+      toast.error("Please add some content to your note first");
+      return;
+    }
+    
     setIsFormatting(true);
     try {
       const formatted = await formatNoteWithAI(selectedNote.content);
       await updateNote(selectedNote.id, { markup: formatted });
+      toast.success("Note illuminated!");
+    } catch (error) {
+      console.error("[UI] handleFormatNote error:", error);
+      toast.error("Failed to illuminate note. Check console for details.");
     } finally {
       setIsFormatting(false);
     }
