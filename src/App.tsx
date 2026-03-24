@@ -241,6 +241,11 @@ function AppContent() {
   const [newTag, setNewTag] = useState('');
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
+  // Local state for editor to prevent glitchy typing
+  const [localTitle, setLocalTitle] = useState('');
+  const [localContent, setLocalContent] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
+
   // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -309,6 +314,29 @@ function AppContent() {
   }, [user]);
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
+
+  // Sync local state when selected note changes
+  useEffect(() => {
+    if (selectedNote) {
+      setLocalTitle(selectedNote.title);
+      setLocalContent(selectedNote.content);
+      setIsDirty(false);
+    } else {
+      setLocalTitle('');
+      setLocalContent('');
+      setIsDirty(false);
+    }
+  }, [selectedNote?.id]);
+
+  // Debounced update to Firestore
+  useEffect(() => {
+    if (!selectedNote || !isDirty) return;
+    const timeout = setTimeout(() => {
+      updateNote(selectedNote.id, { title: localTitle, content: localContent });
+      setIsDirty(false);
+    }, 800); // 800ms debounce
+    return () => clearTimeout(timeout);
+  }, [localTitle, localContent, isDirty, selectedNote?.id]);
 
   const createNote = async () => {
     if (!user) return;
@@ -825,9 +853,15 @@ function AppContent() {
                 <div className="mb-12">
                   <input 
                     type="text"
-                    value={selectedNote.title}
-                    onChange={(e) => updateNote(selectedNote.id, { title: e.target.value })}
+                    value={localTitle}
+                    onChange={(e) => {
+                      setLocalTitle(e.target.value);
+                      setIsDirty(true);
+                    }}
                     placeholder="Note Title"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                     className="w-full bg-transparent text-5xl font-bold mb-6 focus:outline-none placeholder:text-white/10 tracking-tight font-display"
                   />
                   
@@ -863,9 +897,15 @@ function AppContent() {
                       </div>
                     </div>
                     <textarea 
-                      value={selectedNote.content}
-                      onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
+                      value={localContent}
+                      onChange={(e) => {
+                        setLocalContent(e.target.value);
+                        setIsDirty(true);
+                      }}
                       placeholder="Start writing your thoughts..."
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
                       className="w-full h-[55vh] bg-transparent resize-none focus:outline-none text-lg leading-relaxed placeholder:text-white/5"
                     />
                   </div>
