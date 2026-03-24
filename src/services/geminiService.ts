@@ -6,6 +6,25 @@ if (!apiKey) {
 }
 const ai = new GoogleGenAI({ apiKey: apiKey as string });
 
+const RATE_LIMIT_WINDOW = 60000;
+const MAX_REQUESTS = 5;
+const requestTimestamps: number[] = [];
+
+const checkRateLimit = () => {
+  const now = Date.now();
+  const recentRequests = requestTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+  requestTimestamps.length = 0;
+  requestTimestamps.push(...recentRequests);
+  
+  if (requestTimestamps.length >= MAX_REQUESTS) {
+    const oldestRequest = requestTimestamps[0];
+    const waitTime = Math.ceil((oldestRequest + RATE_LIMIT_WINDOW - now) / 1000);
+    throw new Error(`Rate limit reached. Please wait ${waitTime} seconds.`);
+  }
+  
+  requestTimestamps.push(now);
+};
+
 export const formatNoteWithAI = async (content: string) => {
   if (!apiKey) {
     console.error("[AI] Cannot call API: GEMINI_API_KEY is not configured");
@@ -15,6 +34,8 @@ export const formatNoteWithAI = async (content: string) => {
   if (!content.trim()) {
     return content;
   }
+  
+  checkRateLimit();
   
   try {
     const systemPrompt = `You are Lumina, an elite personal strategist and knowledge architect. 
@@ -31,7 +52,7 @@ If the input is a list of tasks, turn it into a full daily schedule with time es
 If the input is a brain dump, turn it into a structured project brief with clear sections.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash-preview-05-20",
       contents: [{
         role: "user",
         parts: [{ text: systemPrompt }]
@@ -65,7 +86,7 @@ If the input is a brain dump, turn it into a structured project brief with clear
 export const transcribeVoiceNote = async (audioBase64: string) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash-preview-05-20",
       contents: [{
         role: "user",
         parts: [
@@ -112,6 +133,7 @@ export const chatWithNotes = async (query: string, notes: any[]) => {
   }
   
   try {
+    checkRateLimit();
     const queryEmbedding = await getEmbeddings(query);
     
     let context = "";
@@ -147,7 +169,7 @@ GUIDELINES:
 If the user's notes are empty or irrelevant, acknowledge it and offer to help them brainstorm.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash-preview-05-20",
       contents: [{
         role: "user",
         parts: [{ text: systemPrompt }]
