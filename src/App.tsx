@@ -120,8 +120,7 @@ function LuminaInsight({ notes, isPremium }: { notes: Note[], isPremium: boolean
     setIsLoading(true);
 
     try {
-      const relevantNotes = notes.map(n => ({ title: n.title, content: n.content }));
-      const response = await chatWithNotes(userQuery, relevantNotes);
+      const response = await chatWithNotes(userQuery, notes);
       setMessages(prev => [...prev, { role: 'ai', content: response }]);
     } finally {
       setIsLoading(false);

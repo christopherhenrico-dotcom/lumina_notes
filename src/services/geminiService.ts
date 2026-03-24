@@ -6,10 +6,23 @@ export const formatNoteWithAI = async (content: string) => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `You are a professional note-taking assistant. Convert the following plain text into a beautifully formatted Markdown note. Use headings, bullet points, bold text, and code blocks where appropriate to make it structured and easy to read. Preserve all the original information but organize it better.
-
-Text to format:
-${content}`,
+      config: {
+        systemInstruction: `You are Lumina, an elite personal strategist and knowledge architect. 
+        Your goal is to "Illuminate" the user's raw, messy notes into a high-fidelity, structured, and actionable plan.
+        
+        RULES:
+        1. STRUCTURE: Use clear Markdown (H1 for Title, H2 for Sections).
+        2. ELABORATION: Don't just reformat; expand on the user's intent. If they mention a task, break it down into sub-steps.
+        3. INSIGHTS: Add a "Lumina Insights" section at the end with 3 strategic suggestions or questions based on the content.
+        4. VISUALS: Use tables, bolding, and bullet points to make it scannable.
+        5. TONE: Professional, encouraging, and highly organized.
+        
+        If the input is a list of tasks, turn it into a full daily schedule with time estimates.
+        If the input is a brain dump, turn it into a structured project brief.`,
+      },
+      contents: `Illuminate this note:
+      
+      ${content}`,
     });
 
     return response.text || content;
@@ -56,21 +69,60 @@ export const getEmbeddings = async (text: string) => {
   }
 };
 
-export const chatWithNotes = async (query: string, notes: { title: string, content: string }[]) => {
+const cosineSimilarity = (vecA: number[], vecB: number[]) => {
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  return dotProduct / (magnitudeA * magnitudeB);
+};
+
+export const chatWithNotes = async (query: string, notes: any[]) => {
   try {
-    const context = notes.map(n => `Title: ${n.title}\nContent: ${n.content}`).join('\n\n---\n\n');
+    // 1. Get query embedding
+    const queryEmbedding = await getEmbeddings(query);
+    
+    let context = "";
+    if (queryEmbedding) {
+      // 2. Rank notes by similarity
+      const rankedNotes = notes
+        .filter(n => n.embeddings)
+        .map(n => ({
+          ...n,
+          similarity: cosineSimilarity(queryEmbedding, n.embeddings!)
+        }))
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 5); // Top 5 relevant notes
+
+      context = rankedNotes.map(n => `[Note: ${n.title}]\n${n.content}`).join('\n\n---\n\n');
+    } else {
+      // Fallback to simple context if embedding fails
+      context = notes.slice(0, 10).map(n => `[Note: ${n.title}]\n${n.content}`).join('\n\n---\n\n');
+    }
+
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `You are Lumina Insight, an AI assistant that helps users understand their own notes. Use the provided context (which are the user's notes) to answer their question. If the answer isn't in the notes, say so politely but try to offer a helpful general perspective if relevant.
-
-Context (User's Notes):
-${context}
-
-User Question:
-${query}`,
+      config: {
+        systemInstruction: `You are Lumina Insight, a world-class research assistant inspired by NotebookLM. 
+        Your purpose is to help the user synthesize, analyze, and retrieve information from their personal knowledge base.
+        
+        GUIDELINES:
+        1. SOURCE-DRIVEN: Always prioritize information found in the provided notes. 
+        2. CITATIONS: When you use information from a note, mention its title like [Note: Title].
+        3. SYNTHESIS: Don't just list facts; connect the dots between different notes.
+        4. EXTERNAL KNOWLEDGE: If the answer isn't in the notes, use your internal knowledge (and Google Search if needed) to provide a helpful answer, but clearly distinguish it from the user's notes.
+        5. FORMATTING: Use clean Markdown.
+        
+        If the user's notes are empty or irrelevant, acknowledge it and offer to help them brainstorm or search the web.`,
+        tools: [{ googleSearch: {} }],
+      },
+      contents: `Context (User's Personal Notes):
+      ${context}
+      
+      User's Question:
+      ${query}`,
     });
 
-    return response.text || "I couldn't find an answer in your notes.";
+    return response.text || "I couldn't find a clear answer in your notes.";
   } catch (error) {
     console.error("Lumina Insight Error:", error);
     return "Something went wrong while searching your notes.";
