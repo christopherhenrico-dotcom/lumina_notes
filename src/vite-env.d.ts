@@ -8,6 +8,9 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string
   readonly VITE_FIREBASE_APP_ID: string
   readonly VITE_FIREBASE_FIRESTORE_DATABASE_ID: string
+  readonly VITE_GOOGLE_PAY_MERCHANT_ID: string
+  readonly VITE_GOOGLE_PAY_GATEWAY: string
+  readonly VITE_GOOGLE_PAY_ENV: string
   readonly GEMINI_API_KEY: string
 }
 

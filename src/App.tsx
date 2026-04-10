@@ -70,28 +70,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-function AdBanner() {
-  useEffect(() => {
-    try {
-      // @ts-ignore
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (e) {
-      // Ignore errors if ads are blocked or script not loaded
-    }
-  }, []);
 
-  return (
-    <div className="w-full bg-white/5 rounded-xl p-4 my-4 flex flex-col items-center justify-center border border-white/10 min-h-[100px]">
-      <span className="text-[10px] text-white/20 uppercase tracking-widest mb-2">Advertisement</span>
-      <ins className="adsbygoogle"
-           style={{ display: 'block' }}
-           data-ad-client="ca-pub-0000000000000000"
-           data-ad-slot="0000000000"
-           data-ad-format="auto"
-           data-full-width-responsive="true"></ins>
-    </div>
-  );
-}
 
 function LuminaInsight({ notes, isPremium }: { notes: Note[], isPremium: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -733,9 +712,9 @@ function AppContent() {
               {!userProfile?.isPremium && (
                 <div className="px-4 py-6 mt-4 glass rounded-2xl border border-white/10">
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3">Lumina Premium</p>
-                  <p className="text-xs text-white/60 mb-4 leading-relaxed">Unlock Lumina Insight and remove ads for a one-time fee of $9.99.</p>
+                  <p className="text-xs text-white/60 mb-4 leading-relaxed">Unlock Lumina Insight for a one-time fee of $9.99.</p>
                   <GooglePayButton
-                    environment="TEST"
+                    environment={import.meta.env.VITE_GOOGLE_PAY_ENV === 'PRODUCTION' ? 'PRODUCTION' : 'TEST'}
                     paymentRequest={{
                       apiVersion: 2,
                       apiVersionMinor: 0,
@@ -749,14 +728,14 @@ function AppContent() {
                           tokenizationSpecification: {
                             type: 'PAYMENT_GATEWAY',
                             parameters: {
-                              gateway: 'example',
-                              gatewayMerchantId: 'exampleGatewayMerchantId',
+                              gateway: import.meta.env.VITE_GOOGLE_PAY_GATEWAY || 'example',
+                              gatewayMerchantId: import.meta.env.VITE_GOOGLE_PAY_MERCHANT_ID || 'exampleGatewayMerchantId',
                             },
                           },
                         },
                       ],
                       merchantInfo: {
-                        merchantId: '12345678901234567890',
+                        merchantId: import.meta.env.VITE_GOOGLE_PAY_MERCHANT_ID || '12345678901234567890',
                         merchantName: 'Lumina Notes',
                       },
                       transactionInfo: {
@@ -821,12 +800,11 @@ function AppContent() {
               className="w-full glass-input rounded-xl py-2.5 pl-10 pr-4 text-sm"
             />
           </div>
-        </div>
+          </div>
 
           <div className="flex-1 overflow-y-auto px-3 pb-6 space-y-2">
-            {!userProfile?.isPremium && <AdBanner />}
             {filteredNotes.map(note => (
-            <motion.button
+              <motion.button
               layout
               key={note.id}
               onClick={() => setSelectedNoteId(note.id)}

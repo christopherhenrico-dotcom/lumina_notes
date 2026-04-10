@@ -1,7 +1,7 @@
 {
-  "name": "react-example",
+  "name": "lumina-notes",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
@@ -10,9 +10,14 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "android": "npm run build && npx cap sync android && npx cap run android",
+    "build:android": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^7.6.1",
+    "@capacitor/core": "^8.3.0",
     "@google-pay/button-react": "^3.2.1",
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
